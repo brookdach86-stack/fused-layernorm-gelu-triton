@@ -1,6 +1,6 @@
-# Triton 算子学习
+# Fused LayerNorm + GELU in Triton
 
-用 Triton 写的算子演进链，从第一个 kernel 到算子融合。
+Triton kernel 演进链：向量加 → 矩阵乘 → SoftMax → LayerNorm + GELU 融合。
 
 ## 环境
 
