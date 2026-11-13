@@ -13,14 +13,14 @@
 
 # Fused LayerNorm + GELU in Triton
 
-Triton kernel evolution chain — the point where I stopped treating each op as separate and started fusing. Key insight: LayerNorm output → GELU input is a register-level pass, no HBM round trip needed.
+Triton kernel迭代链——从这里开始不再把每个op当成独立的东西，而是开始融合。核心洞察：LayerNorm的输出直接喂给GELU，数据全程停在register里，根本不需要写HBM。
 
-**Pitfalls I hit**:
+踩过的坑：
 
-- Variance goes microscopically negative in floating-point precision — added `tl.where(var < 0, 0, var)` guard
-- `BLOCK_SIZE` must be power-of-two; use `triton.next_power_of_2(N)` to compute, otherwise silent wrong results
-- GELU uses exact `tl.erf` not tanh approximation; approximation changes model accuracy
-- Peak memory must use `torch.cuda.max_memory_allocated()` not `memory_allocated()` (latter is current, not peak)
+- variance在fp精度下会变成微负数——加了`tl.where(var < 0, 0, var)`兜底
+- `BLOCK_SIZE`必须是2的幂——用`triton.next_power_of_2(N)`算，否则结果静默错误
+- GELU必须用精确公式（`tl.erf`），不能用tanh近似——近似会改变模型精度
+- 测peak memory要用`torch.cuda.max_memory_allocated()`，不是`memory_allocated()`（后者是当前值不是峰值）
 
 ## Environment
 
