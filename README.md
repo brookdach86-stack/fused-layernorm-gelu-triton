@@ -1,6 +1,26 @@
+![Original Work](https://img.shields.io/badge/Original-Wain-brightgreen)
+![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen)
+![License Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)
+![Target HW](https://img.shields.io/badge/Target%20HW-RTX%205060%20Laptop%20(sm_120)-brightgreen)
+
+---
+
+<!--
+@Author: Wain (brookdach86-stack@users.noreply.github.com)
+@GitHub: https://github.com/brookdach86-stack
+@Note: All original work, for citation please include source. Learning path: CSAPP Lab → CUDA Kernel → Triton → LLM Inference
+-->
+
 # Fused LayerNorm + GELU in Triton
 
-Triton kernel evolution chain: vector add → matmul → SoftMax → fused LayerNorm + GELU.
+Triton kernel evolution chain — the point where I stopped treating each op as separate and started fusing. Key insight: LayerNorm output → GELU input is a register-level pass, no HBM round trip needed.
+
+**Pitfalls I hit**:
+
+- Variance goes microscopically negative in floating-point precision — added `tl.where(var < 0, 0, var)` guard
+- `BLOCK_SIZE` must be power-of-two; use `triton.next_power_of_2(N)` to compute, otherwise silent wrong results
+- GELU uses exact `tl.erf` not tanh approximation; approximation changes model accuracy
+- Peak memory must use `torch.cuda.max_memory_allocated()` not `memory_allocated()` (latter is current, not peak)
 
 ## Environment
 
