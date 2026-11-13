@@ -24,42 +24,35 @@ Triton kernel迭代链——从这里开始不再把每个op当成独立的东�
 
 ## Environment
 
-RTX 5060 Laptop (sm_120), Python 3.10+, PyTorch + Triton.
+RTX 5060 Laptop (sm_120), Python 3.10+, PyTorch + Triton。
 
-## Evolution Chain
+## 迭代链
 
-| Stage | File | What It Does | New Concept |
+| 阶段 | 文件 | 做了什么 | 新概念 |
 | --- | --- | --- | --- |
-| 01 | `01_vector_add/vector_add.py` | First Triton kernel: vector addition | `@triton.jit`, `program_id`, `tl.load/store` |
-| 02 | `02_matmul/matmul.py` | Matrix multiplication, block pointers auto-generate shared memory tiling | `tl.dot()` (dispatches Tensor Core), tiling |
-| 03 | `03_softmax/softmax.py` | SoftMax, online algorithm in single pass | Reduction `tl.max/sum`, numerical stability |
-| 04 | `04_fused_layernorm_gelu/` | LayerNorm + GELU fusion, intermediate result never hits HBM | Operator fusion, bandwidth optimization |
+| 01 | `01_vector_add/vector_add.py` | 第一个Triton kernel：向量加法 | `@triton.jit`、`program_id`、`tl.load/store` |
+| 02 | `02_matmul/matmul.py` | 矩阵乘，block pointer自动做smem tiling | `tl.dot()`（底层调Tensor Core）、tiling |
+| 03 | `03_softmax/softmax.py` | SoftMax，online算法单趟完成 | reduction `tl.max/sum`、数值稳定性 |
+| 04 | `04_fused_layernorm_gelu/` | LayerNorm + GELU融合，中间值不写HBM | operator fusion、带宽优化 |
 
-## 04 LayerNorm + GELU Fusion
+## 04 LayerNorm + GELU 融合
 
-Fuse LayerNorm and GELU into one kernel — intermediate result stays in registers, passed directly to the next step.
+LayerNorm和GELU合成一个kernel——LayerNorm的输出直接在register里喂给GELU，不写HBM。
 
-Run `benchmark.py` to compare against PyTorch stepwise implementation. Fused version is **2.1× faster** and saves **33.29% memory** (N=4096, M=512).
+跑`benchmark.py`和PyTorch分开算的版本对比。融合版**快2.1倍**、**省33.29%显存**（N=4096, M=512）。
 
-### Files
+### 文件
 
-- `layernorm.py` — Standalone LayerNorm kernel, matches `torch.nn.functional.layer_norm`
-- `fused_layernorm_gelu.py` — Fused kernel, LayerNorm output feeds directly into GELU
-- `benchmark.py` — Uses `triton.testing.perf_report` for latency comparison at various input lengths; also measures peak memory
+- `layernorm.py` — 独立LayerNorm kernel，和`torch.nn.functional.layer_norm`结果一致
+- `fused_layernorm_gelu.py` — 融合kernel，LayerNorm输出直接喂GELU
+- `benchmark.py` — 用`triton.testing.perf_report`测不同输入长度的latency，也测peak memory
 
-### Why It's Fast
+### 为什么快
 
-Element-wise operators like this on GPU are bandwidth-bound, not compute-bound. Split execution writes LayerNorm output to HBM once, then GELU reads it back. Fusion eliminates this round trip.
-
-### Bugs Hit Along the Way
-
-- Variance occasionally goes microscopically negative in floating-point precision; added `tl.where(var < 0, 0, var)` guard
-- `BLOCK_SIZE` must be power of two; use `triton.next_power_of_2(N)` to compute
-- GELU uses the exact formula (`tl.erf`), not tanh approximation
-- Peak memory measured with `torch.cuda.max_memory_allocated()`, not `memory_allocated()` (the latter is current, not peak)
+这类element-wise算子在GPU上是**带宽受限**的，不是算力受限。分开算时LayerNorm的输出先写HBM，GELU再读回来。融合把这个HBM round trip干掉了。
 
 ## Triton vs CUDA
 
-CUDA is written from thread up — manage shared memory, bank conflicts, register spilling; changing one line takes careful thought. Triton is written from block up — the compiler decomposes it to threads — so iteration is much faster when prototyping algorithms.
+CUDA是从thread往上写的——要自己管smem、bank conflict、register spilling；改一行代码要想清楚连锁反应。Triton是从block往上写的——编译器帮你拆成thread，所以算法原型迭代比CUDA快得多。
 
-For final performance of complex operators (FlashAttention, GEMM), handwritten CUDA is still needed. Triton excels at quickly validating algorithms and writing fused kernels.
+但复杂算子（FlashAttention、GEMM）要榨到极限性能还是得手写CUDA。Triton的强项是快速验证算法和写融合kernel。
