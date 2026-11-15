@@ -1,7 +1,9 @@
 ![Original Work](https://img.shields.io/badge/Original-Wain-brightgreen)
 ![GPG Signed](https://img.shields.io/badge/GPG-Signed-brightgreen)
 ![License Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)
-![Target HW](https://img.shields.io/badge/Target%20HW-RTX%205060%20Laptop%20(sm_120)-brightgreen)
+![Target HW](https://img.shields.io/badge/Target%20HW-RTX%205060%20Laptop%20(sm_120%2C26SM%2C32MB%20L2)-brightgreen)
+![Triton](https://img.shields.io/badge/Framework-Triton%20%7C%20PyTorch-orange)
+![Kernel Fusion](https://img.shields.io/badge/Fusion-LayerNorm%20%2B%20GELU-9cf)
 
 ---
 
