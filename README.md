@@ -15,7 +15,7 @@
 
 # Fused LayerNorm + GELU in Triton
 
-![architecture](figures/fig0_architecture.png)
+![architecture](https://ghfast.top/https://raw.githubusercontent.com/brookdach86-stack/fused-layernorm-gelu-triton/main/figures/fig0_architecture.png)
 
 Triton kernel迭代链——从这里开始不再把每个op当成独立的东西，而是开始融合。核心洞察：LayerNorm的输出直接喂给GELU，数据全程停在register里，根本不需要写HBM。
 
@@ -45,7 +45,7 @@ LayerNorm和GELU合成一个kernel——LayerNorm的输出直接在register里�
 
 跑`benchmark.py`和PyTorch分开算的版本对比。融合版**快2.1倍**、**省33.29%显存**（N=4096, M=512）。
 
-![fusion](figures/fig1_fusion_gain.png)
+![fusion](https://ghfast.top/https://raw.githubusercontent.com/brookdach86-stack/fused-layernorm-gelu-triton/main/figures/fig1_fusion_gain.png)
 
 ### 文件
 
